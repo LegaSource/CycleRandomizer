@@ -2,6 +2,7 @@
 using LethalLevelLoader;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace CycleRandomizer.Patches
@@ -77,8 +78,8 @@ namespace CycleRandomizer.Patches
 
         private static void AddCycleDisplayCommands(ref Terminal __instance)
         {
-            AddCycleDisplayCommand(ref __instance, "CycleDisplayMoons", "cdm", "CycleMoonsCatalogue", "List of moons that cannot be randomly selected:\n\n\n");
-            AddCycleDisplayCommand(ref __instance, "CycleDisplayDungeons", "cdd", "CycleDungeonsCatalogue", "List of dungeons that cannot be randomly selected:\n\n\n");
+            AddCycleDisplayCommand(ref __instance, "CycleDisplayMoons", "cdm", "CycleMCatalogue", "List of moons that cannot be randomly selected:\n\n\n");
+            AddCycleDisplayCommand(ref __instance, "CycleDisplayDungeons", "cdd", "CycleDCatalogue", "List of dungeons that cannot be randomly selected:\n\n\n");
         }
 
         private static void AddCycleDisplayCommand(ref Terminal __instance, string name, string word, string nodeName, string displayText)
@@ -117,8 +118,14 @@ namespace CycleRandomizer.Patches
             foreach (string name in names)
             {
                 string processedName = GetNameOnlyWithLetters(name);
-                AddCycleAddRemoveCommand(ref __instance, ref addKeyword, $"cycleadd{type.ToLower()}{processedName.ToLower()}Node", ref processedName);
-                AddCycleAddRemoveCommand(ref __instance, ref removeKeyword, $"cycleremove{type.ToLower()}{processedName.ToLower()}Node", ref processedName);
+                string firstPartName = GetFirstPart(name);
+                if (!string.IsNullOrEmpty(firstPartName))
+                {
+                    AddCycleAddRemoveCommand(ref __instance, ref addKeyword, $"cycleadd{type.ToLower()}{processedName.ToLower()}Node", ref firstPartName);
+                    AddCycleAddRemoveCommand(ref __instance, ref removeKeyword, $"cycleremove{type.ToLower()}{processedName.ToLower()}Node", ref firstPartName);
+                }
+                AddCycleAddRemoveCommand(ref __instance, ref addKeyword, $"cycleadd{type.ToLower()}{processedName.ToLower()}NodeFull", ref processedName);
+                AddCycleAddRemoveCommand(ref __instance, ref removeKeyword, $"cycleremove{type.ToLower()}{processedName.ToLower()}NodeFull", ref processedName);
             }
         }
 
@@ -261,6 +268,17 @@ namespace CycleRandomizer.Patches
             terminalNode.itemCost = itemCost;
             terminalNode.clearPreviousText = clearPreviousText;
             return terminalNode;
+        }
+
+        // Récupère la première partie du string s'il en existe au moins deux
+        private static string GetFirstPart(string name)
+        {
+            // ^[^a-zA-Z]* -> Permet de skip les caractères qui ne sont pas des lettres au début du string
+            // ([a-zA-Z]+) -> Permet de capturer la première séquence de lettres (majuscule ou minuscule) trouvée après les caractères ignorés
+            // [^a-zA-Z]+ -> Permet de vérifier qu'il existe au moins un caractère non alphabétique après la première séquence de lettres
+            // [a-zA-Z] -> Permet de vérifier qu'il existe au moins une lettre après la première séquence de lettres
+            var match = Regex.Match(name, @"^[^a-zA-Z]*([a-zA-Z]+)[^a-zA-Z]+[a-zA-Z]");
+            return match.Success ? match.Groups[1].Value : string.Empty;
         }
 
         private static string GetNameOnlyWithLetters(string name)

@@ -27,6 +27,7 @@ namespace CycleRandomizer.Patches
         }
 
         [HarmonyPatch(typeof(StartOfRound), nameof(StartOfRound.SetMapScreenInfoToCurrentLevel))]
+        [HarmonyAfter(new string[] { "mrov.WeatherRegistry" })]
         [HarmonyPostfix]
         private static void HideMapScreenInfo(ref StartOfRound __instance, ref VideoPlayer ___screenLevelVideoReel, ref TextMeshProUGUI ___screenLevelDescription)
         {
