@@ -12,7 +12,7 @@ namespace CycleRandomizer
     {
         private const string modGUID = "Lega.CycleRandomizer";
         private const string modName = "Cycle Randomizer";
-        private const string modVersion = "1.0.2";
+        private const string modVersion = "1.0.3";
 
         private readonly Harmony harmony = new Harmony(modGUID);
 

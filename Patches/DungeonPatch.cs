@@ -33,7 +33,6 @@ namespace CycleRandomizer.Patches
                 if (validExtendedDungeonFlowWithRarity.Count > 0)
                 {
                     __result = validExtendedDungeonFlowWithRarity;
-                    return;
                 }
             }
         }

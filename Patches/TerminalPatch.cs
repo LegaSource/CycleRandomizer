@@ -15,6 +15,7 @@ namespace CycleRandomizer.Patches
         {
             AddCycleRandomCommand(ref __instance);
             AddCycleDisplayCommands(ref __instance);
+            AddCycleClearFillCommands(ref __instance);
             AddCycleAddRemoveCommands(ref __instance, "Moon", "cam", "crm", StartOfRound.Instance.levels.Where(l => l.planetHasTime).Select(l => l.PlanetName));
             AddCycleAddRemoveCommands(ref __instance, "Dungeon", "cad", "crd", PatchedContent.ExtendedDungeonFlows.Select(d => d.DungeonName).Distinct());
         }
@@ -27,6 +28,7 @@ namespace CycleRandomizer.Patches
             {
                 return;
             }
+
             if (!GameNetworkManager.Instance.localPlayerController.IsServer
                 && !GameNetworkManager.Instance.localPlayerController.IsHost
                 && (__result.name.Contains("cycle") || __result.name.Contains("Cycle")))
@@ -42,6 +44,14 @@ namespace CycleRandomizer.Patches
                 if (__result.name.Equals("cyclerandomNode"))
                 {
                     HandleCycleRandomNode(ref __result, ref __instance);
+                }
+                else if (__result.name.Contains("CycleClear"))
+                {
+                    HandleCycleClearNode(__result.name);
+                }
+                else if (__result.name.Contains("CycleFill"))
+                {
+                    HandleCycleFillNode(__result.name);
                 }
                 else if (__result.name.Contains("cycleaddmoon") || __result.name.Contains("cycleremovemoon"))
                 {
@@ -78,11 +88,65 @@ namespace CycleRandomizer.Patches
 
         private static void AddCycleDisplayCommands(ref Terminal __instance)
         {
-            AddCycleDisplayCommand(ref __instance, "CycleDisplayMoons", "cdm", "CycleMCatalogue", "List of moons that cannot be randomly selected:\n\n\n");
-            AddCycleDisplayCommand(ref __instance, "CycleDisplayDungeons", "cdd", "CycleDCatalogue", "List of dungeons that cannot be randomly selected:\n\n\n");
+            string displayedMoons = "List of moons that cannot be randomly selected:\n\n";
+            if (!string.IsNullOrEmpty(ConfigManager.moonDefaultExclusions.Value))
+            {
+                string[] moons = ConfigManager.moonDefaultExclusions.Value.Split(',');
+                foreach (string moonName in moons)
+                {
+                    string name = StartOfRound.Instance.levels.Where(l => GetNameOnlyWithLetters(l.PlanetName).ToLower().Contains(moonName.ToLower())).FirstOrDefault()?.PlanetName;
+                    if (!string.IsNullOrEmpty(name) && !CycleRandomizer.cycleMoons.Contains(name))
+                    {
+                        CycleRandomizer.cycleMoons.Add(name);
+                        displayedMoons += "* " + name + "\n";
+                    }
+                }
+                displayedMoons += "\n\n";
+            }
+            string displayedDungeons = "List of dungeons that cannot be randomly selected:\n\n";
+            if (!string.IsNullOrEmpty(ConfigManager.dungeonDefaultExclusions.Value))
+            {
+                string[] dungeons = ConfigManager.dungeonDefaultExclusions.Value.Split(',');
+                foreach (string dungeonName in dungeons)
+                {
+                    string name = PatchedContent.ExtendedDungeonFlows.Select(d => d.DungeonName).Distinct().Where(d => GetNameOnlyWithLetters(d).ToLower().Contains(dungeonName.ToLower())).FirstOrDefault();
+                    if (!string.IsNullOrEmpty(name) && !CycleRandomizer.cycleDungeons.Contains(name))
+                    {
+                        CycleRandomizer.cycleDungeons.Add(name);
+                        displayedDungeons += "* " + name + "\n";
+                    }
+                }
+                displayedDungeons += "\n\n";
+            }
+
+            AddCycleDisplayCommand(ref __instance, "CycleDisplayMoons", "cdm", "CycleMCatalogue", displayedMoons);
+            AddCycleDisplayCommand(ref __instance, "CycleDisplayDungeons", "cdd", "CycleDCatalogue", displayedDungeons);
         }
 
         private static void AddCycleDisplayCommand(ref Terminal __instance, string name, string word, string nodeName, string displayText)
+        {
+            TerminalKeyword cycleDisplayKeyword = CreateTerminalKeyword
+            (
+                name: name,
+                word: word,
+                specialKeywordResult: CreateTerminalNode
+                (
+                    name: nodeName,
+                    displayText: displayText
+                )
+            );
+            __instance.terminalNodes.allKeywords = CollectionExtensions.AddToArray(__instance.terminalNodes.allKeywords, cycleDisplayKeyword);
+        }
+
+        private static void AddCycleClearFillCommands(ref Terminal __instance)
+        {
+            AddCycleClearFillCommand(ref __instance, "CycleClearMoons", "ccm", "CycleClearM", "Moon list cleared.\n\n");
+            AddCycleClearFillCommand(ref __instance, "CycleClearDungeons", "ccd", "CycleClearD", "Dungeon list cleared.\n\n");
+            AddCycleClearFillCommand(ref __instance, "CycleFillMoons", "cfm", "CycleFillM", "Moon list filled.\n\n");
+            AddCycleClearFillCommand(ref __instance, "CycleFillDungeons", "cfd", "CycleFillD", "Dungeon list filled.\n\n");
+        }
+
+        private static void AddCycleClearFillCommand(ref Terminal __instance, string name, string word, string nodeName, string displayText)
         {
             TerminalKeyword cycleDisplayKeyword = CreateTerminalKeyword
             (
@@ -216,6 +280,38 @@ namespace CycleRandomizer.Patches
                 }
             }
             return null;
+        }
+
+        private static void HandleCycleClearNode(string name)
+        {
+            if (name.Equals("CycleClearM"))
+            {
+                CycleRandomizer.cycleMoons.Clear();
+                MoonPatch.RefreshTerminalCycleMoons();
+            }
+            else if (name.Equals("CycleClearD"))
+            {
+                CycleRandomizer.cycleDungeons.Clear();
+                DungeonPatch.RefreshTerminalCycleDungeons();
+            }
+        }
+
+        private static void HandleCycleFillNode(string name)
+        {
+            if (name.Equals("CycleFillM"))
+            {
+                foreach (string planetName in StartOfRound.Instance.levels.Where(l => l.planetHasTime).Select(l => l.PlanetName))
+                {
+                    MoonPatch.AddCycleMoon(planetName);
+                }
+            }
+            else if (name.Equals("CycleFillD"))
+            {
+                foreach (string dungeonName in PatchedContent.ExtendedDungeonFlows.Select(d => d.DungeonName).Distinct())
+                {
+                    DungeonPatch.AddCycleDungeon(dungeonName);
+                }
+            }
         }
 
         private static void HandleCycleAddRemoveNode(ref TerminalNode __result, string type, bool isAdd)
