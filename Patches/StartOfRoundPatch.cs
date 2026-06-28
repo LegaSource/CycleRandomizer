@@ -5,40 +5,36 @@ using System.Linq;
 using TMPro;
 using UnityEngine.Video;
 
-namespace CycleRandomizer.Patches
+namespace CycleRandomizer.Patches;
+
+public class StartOfRoundPatch
 {
-    internal class StartOfRoundPatch
+    [HarmonyPatch(typeof(StartOfRound), nameof(StartOfRound.Start))]
+    [HarmonyPostfix]
+    public static void BindMoonsConfig(ref StartOfRound __instance)
     {
-        [HarmonyPatch(typeof(StartOfRound), "Start")]
-        [HarmonyPostfix]
-        private static void BindMoonsConfig(ref StartOfRound __instance)
+        foreach (string planetName in __instance.levels.Where(l => l.planetHasTime).Select(l => l.PlanetName))
         {
-            foreach (string planetName in __instance.levels.Where(l => l.planetHasTime).Select(l => l.PlanetName))
+            if (!CycleRandomizer.configFile.ContainsKey(new ConfigDefinition("Moons", planetName + " Weight")))
             {
-                if (!CycleRandomizer.configFile.ContainsKey(new ConfigDefinition("Moons", planetName + " Weight")))
-                {
-                    ConfigEntry<int> weight = CycleRandomizer.configFile.Bind<int>("Moons", planetName + " Weight", 1, "Weighting value for " + planetName + " to be randomly selected");
-                    CycleRandomizer.planetWeights.Add(new Dictionary<string, int>
-                    {
-                        { planetName, weight.Value }
-                    });
-                }
+                ConfigEntry<int> weight = CycleRandomizer.configFile.Bind<int>("Moons", planetName + " Weight", 1, "Weighting value for " + planetName + " to be randomly selected");
+                _ = CycleRandomizer.planetWeights.Add(new Dictionary<string, int> { { planetName, weight.Value } });
             }
         }
+    }
 
-        [HarmonyPatch(typeof(StartOfRound), nameof(StartOfRound.SetMapScreenInfoToCurrentLevel))]
-        [HarmonyAfter(new string[] { "mrov.WeatherRegistry" })]
-        [HarmonyPostfix]
-        private static void HideMapScreenInfo(ref StartOfRound __instance, ref VideoPlayer ___screenLevelVideoReel, ref TextMeshProUGUI ___screenLevelDescription)
+    [HarmonyPatch(typeof(StartOfRound), nameof(StartOfRound.SetMapScreenInfoToCurrentLevel))]
+    [HarmonyAfter(["mrov.WeatherRegistry"])]
+    [HarmonyPostfix]
+    public static void HideMapScreenInfo(ref StartOfRound __instance, ref VideoPlayer ___screenLevelVideoReel, ref TextMeshProUGUI ___screenLevelDescription)
+    {
+        if (ConfigManager.isMoonScreenHided.Value && !__instance.currentLevel.name.Equals("CompanyBuildingLevel"))
         {
-            if (ConfigManager.isMoonScreenHided.Value && !__instance.currentLevel.name.Equals("CompanyBuildingLevel"))
-            {
-                ___screenLevelDescription.text = "Orbiting: Unknown\nPOPULATION: Unknown\nCONDITIONS: Unknown\nFAUNA: Unknown\nWeather: Unknown";
-                ___screenLevelVideoReel.enabled = false;
-                ___screenLevelVideoReel.clip = null;
-                ___screenLevelVideoReel.gameObject.SetActive(false);
-                ___screenLevelVideoReel.Stop();
-            }
+            ___screenLevelDescription.text = "Orbiting: Unknown\nPOPULATION: Unknown\nCONDITIONS: Unknown\nFAUNA: Unknown\nWeather: Unknown";
+            ___screenLevelVideoReel.enabled = false;
+            ___screenLevelVideoReel.clip = null;
+            ___screenLevelVideoReel.gameObject.SetActive(false);
+            ___screenLevelVideoReel.Stop();
         }
     }
 }
